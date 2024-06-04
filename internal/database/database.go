@@ -20,8 +20,9 @@ type DBStructure struct {
 }
 
 type Chirp struct {
-	ID   int    `json:"id"`
-	Body string `json:"body"`
+	ID       int    `json:"id"`
+	Body     string `json:"body"`
+	AuthorID int    `json:"author_id"`
 }
 
 type User struct {
@@ -29,6 +30,7 @@ type User struct {
 	Email        string `json:"email"`
 	Password     string `json:"password"`
 	RefreshToken string `json:"refresh_token"`
+	IsChirpyRed  bool   `json:"is_chirpy_red"`
 }
 
 func NewDB(path string) (*DB, error) {
@@ -40,7 +42,7 @@ func NewDB(path string) (*DB, error) {
 	return db, err
 }
 
-func (db *DB) CreateChirp(body string) (Chirp, error) {
+func (db *DB) CreateChirp(body string, author_id int) (Chirp, error) {
 	dbStructure, err := db.loadDB()
 	if err != nil {
 		return Chirp{}, err
@@ -48,8 +50,9 @@ func (db *DB) CreateChirp(body string) (Chirp, error) {
 
 	id := len(dbStructure.Chirps) + 1
 	chirp := Chirp{
-		ID:   id,
-		Body: body,
+		ID:       id,
+		Body:     body,
+		AuthorID: author_id,
 	}
 	dbStructure.Chirps[id] = chirp
 
@@ -61,6 +64,27 @@ func (db *DB) CreateChirp(body string) (Chirp, error) {
 	return chirp, nil
 }
 
+func (db *DB) DeleteChirp(id int) error {
+	dbStructure, err := db.loadDB()
+	if err != nil {
+		return err
+	}
+
+	_, ok := dbStructure.Chirps[id]
+	if !ok {
+		return ErrNotExist
+	}
+
+	delete(dbStructure.Chirps, id)
+
+	err = db.writeDB(dbStructure)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (db *DB) GetChirps() ([]Chirp, error) {
 	dbStructure, err := db.loadDB()
 	if err != nil {
@@ -70,6 +94,22 @@ func (db *DB) GetChirps() ([]Chirp, error) {
 	chirps := make([]Chirp, 0, len(dbStructure.Chirps))
 	for _, chirp := range dbStructure.Chirps {
 		chirps = append(chirps, chirp)
+	}
+
+	return chirps, nil
+}
+
+func (db *DB) GetChirpsByAuthorID(authorID int) ([]Chirp, error) {
+	dbStructure, err := db.loadDB()
+	if err != nil {
+		return nil, err
+	}
+
+	chirps := make([]Chirp, 0)
+	for _, chirp := range dbStructure.Chirps {
+		if chirp.AuthorID == authorID {
+			chirps = append(chirps, chirp)
+		}
 	}
 
 	return chirps, nil
@@ -97,9 +137,10 @@ func (db *DB) CreateUser(email, password string) (User, error) {
 
 	id := len(dbStructure.Users) + 1
 	user := User{
-		ID:       id,
-		Email:    email,
-		Password: password,
+		ID:          id,
+		Email:       email,
+		Password:    password,
+		IsChirpyRed: false,
 	}
 	dbStructure.Users[id] = user
 
@@ -134,6 +175,28 @@ func (db *DB) UpdateUser(id int, email, password string) (User, error) {
 	return user, nil
 }
 
+func (db *DB) UpgradeUser(id int) error {
+	dbStructure, err := db.loadDB()
+	if err != nil {
+		return err
+	}
+
+	user, ok := dbStructure.Users[id]
+	if !ok {
+		return ErrNotExist
+	}
+
+	user.IsChirpyRed = true
+	dbStructure.Users[id] = user
+
+	err = db.writeDB(dbStructure)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (db *DB) GetUserByEmail(email string) (User, error) {
 	dbStructure, err := db.loadDB()
 	if err != nil {
@@ -157,6 +220,21 @@ func (db *DB) GetUserByRefreshToken(refreshToken string) (User, error) {
 
 	for _, user := range dbStructure.Users {
 		if user.RefreshToken == refreshToken {
+			return user, nil
+		}
+	}
+
+	return User{}, ErrNotExist
+}
+
+func (db *DB) GetUserByID(id int) (User, error) {
+	dbStructure, err := db.loadDB()
+	if err != nil {
+		return User{}, err
+	}
+
+	for _, user := range dbStructure.Users {
+		if user.ID == id {
 			return user, nil
 		}
 	}

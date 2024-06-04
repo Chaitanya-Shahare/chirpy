@@ -14,11 +14,13 @@ type apiConfig struct {
 	fileserverHits int
 	DB             *database.DB
 	jwtSecret      string
+	polkaAPIKey    string
 }
 
 func main() {
 	godotenv.Load()
 	jwtSecret := os.Getenv("JWT_SECRET")
+	polkaAPIKey := os.Getenv("POLKA_API_KEY")
 
 	const filepathRoot = "."
 	const port = "8080"
@@ -32,6 +34,7 @@ func main() {
 		fileserverHits: 0,
 		DB:             db,
 		jwtSecret:      jwtSecret,
+		polkaAPIKey:    polkaAPIKey,
 	}
 
 	mux := http.NewServeMux()
@@ -43,11 +46,13 @@ func main() {
 	mux.HandleFunc("POST /api/chirps", apiCfg.handlerChirpsCreate)
 	mux.HandleFunc("GET /api/chirps", apiCfg.handlerChirpsRetrieve)
 	mux.HandleFunc("GET /api/chirps/{chirpID}", apiCfg.handlerChirpsGet)
+	mux.HandleFunc("DELETE /api/chirps/{chirpID}", apiCfg.handlerChirpsDelete)
 	mux.HandleFunc("POST /api/users", apiCfg.handlerUsersCreate)
 	mux.HandleFunc("PUT /api/users", apiCfg.handlerUsersUpdate)
 	mux.HandleFunc("POST /api/login", apiCfg.handlerLogin)
 	mux.HandleFunc("POST /api/refresh", apiCfg.handlerRefresh)
 	mux.HandleFunc("POST /api/revoke", apiCfg.handlerRevoke)
+	mux.HandleFunc("POST /api/polka/webhooks", apiCfg.handlerPolkaWebhooks)
 
 	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetrics)
 
