@@ -1,6 +1,6 @@
 # Chirpy
 
-Chirpy is a robust social networking application built in Go. It allows users
+Chirpy is a robust social networking application backend built in Go. It allows users
 to create, retrieve, and delete short messages, known as "chirps".
 
 ## Features
